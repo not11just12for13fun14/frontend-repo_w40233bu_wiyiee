@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Heart, Sparkles, PenTool, Smile, ShowerHead, Gamepad2, Palette, Users, Crown, Check } from 'lucide-react'
+import { Heart, Sparkles, PenTool, Smile, ShowerHead, Gamepad2, Palette, Users, Crown, Check, Music } from 'lucide-react'
 import DoodleCanvas from './components/DoodleCanvas'
 import Badge from './components/Badge'
 
@@ -151,149 +151,134 @@ function LetterCard() {
   )
 }
 
-// Improved, reliable Web Audio soundtrack with gentle shimmer
+// Background music player: plays a user-provided track (e.g., Indila - Love Story)
+// Works with either an environment URL (VITE_BGM_URL) or a local file picker.
 function SoundToggle() {
-  const ctxRef = useRef(null)
-  const gainRef = useRef(null)
-  const o1Ref = useRef(null)
-  const o2Ref = useRef(null)
-  const lfoRef = useRef(null)
-  const [on, setOn] = useState(false)
+  const [playing, setPlaying] = useState(false)
   const [error, setError] = useState('')
+  const audioRef = useRef(null)
+  const srcRef = useRef(null) // current src string
+  const hadUserGestureRef = useRef(false)
 
-  // Clean up fully on unmount
+  const envSrc = typeof import.meta !== 'undefined' ? import.meta.env.VITE_BGM_URL : undefined
+
+  // Create audio element lazily
+  const ensureAudio = () => {
+    if (!audioRef.current) {
+      const el = new Audio()
+      el.loop = true
+      el.preload = 'auto'
+      el.volume = 0
+      // visibility handling
+      const onVis = () => {
+        if (!el) return
+        if (document.hidden && !el.paused) {
+          el.pause()
+          setPlaying(false)
+        }
+      }
+      document.addEventListener('visibilitychange', onVis)
+      // store cleanup on element for safety
+      el._cleanup = () => document.removeEventListener('visibilitychange', onVis)
+      audioRef.current = el
+    }
+    return audioRef.current
+  }
+
   useEffect(() => {
     return () => {
+      const el = audioRef.current
       try {
-        stopAudio(true)
+        if (el?._cleanup) el._cleanup()
+        if (el) {
+          el.pause()
+          el.src = ''
+        }
       } catch {}
     }
   }, [])
 
-  // iOS/auto-unlock helper: create short silent buffer to unlock audio
-  const unlock = async (ctx) => {
-    try {
-      const buffer = ctx.createBuffer(1, 1, 22050)
-      const source = ctx.createBufferSource()
-      source.buffer = buffer
-      source.connect(ctx.destination)
-      source.start(0)
-    } catch {}
+  const fadeTo = async (targetVol, ms = 600) => {
+    const el = ensureAudio()
+    const steps = 24
+    const start = el.volume
+    const delta = targetVol - start
+    const frame = ms / steps
+    for (let i = 1; i <= steps; i++) {
+      await new Promise(r => setTimeout(r, frame))
+      el.volume = Math.min(1, Math.max(0, start + (delta * i) / steps))
+    }
   }
 
-  const startAudio = async () => {
+  const start = async () => {
     setError('')
+    hadUserGestureRef.current = true
+    const el = ensureAudio()
+
+    // pick source priority: chosen file > env url
+    const src = srcRef.current || envSrc
+    if (!src) {
+      setError('Choose the song file first.')
+      return
+    }
+
+    if (el.src !== src) {
+      el.src = src
+    }
+
     try {
-      if (!ctxRef.current) {
-        const Ctx = window.AudioContext || window.webkitAudioContext
-        const ctx = new Ctx()
-        await unlock(ctx)
-
-        const master = ctx.createGain()
-        master.gain.value = 0.0001 // start inaudible, ramp up
-        master.connect(ctx.destination)
-
-        // Base tones
-        const o1 = ctx.createOscillator()
-        o1.type = 'sine'
-        o1.frequency.value = 222
-        const o2 = ctx.createOscillator()
-        o2.type = 'triangle'
-        o2.frequency.value = 333
-        o2.detune.value = 7
-
-        // Gentle LFO modulates gain for shimmer
-        const lfo = ctx.createOscillator()
-        lfo.type = 'sine'
-        lfo.frequency.value = 0.12
-        const lfoGain = ctx.createGain()
-        lfoGain.gain.value = 0.06 // modulation depth
-        lfo.connect(lfoGain)
-        lfoGain.connect(master.gain)
-
-        o1.connect(master)
-        o2.connect(master)
-        o1.start()
-        o2.start()
-        lfo.start()
-
-        ctxRef.current = ctx
-        gainRef.current = master
-        o1Ref.current = o1
-        o2Ref.current = o2
-        lfoRef.current = lfo
-      }
-
-      const ctx = ctxRef.current
-      if (ctx.state === 'suspended') await ctx.resume()
-
-      // Smooth fade in
-      const g = gainRef.current.gain
-      const now = ctx.currentTime
-      g.cancelScheduledValues(now)
-      g.setValueAtTime(g.value, now)
-      g.exponentialRampToValueAtTime(0.08, now + 0.8)
-
-      setOn(true)
+      await el.play()
+      await fadeTo(0.9, 800)
+      setPlaying(true)
     } catch (e) {
-      setError('Audio failed to start. Tap again if your browser blocked it.')
+      setError('Playback was blocked. Tap again to start.')
       console.error(e)
     }
   }
 
-  const stopAudio = (closing = false) => {
-    const ctx = ctxRef.current
-    if (!ctx || !gainRef.current) {
-      setOn(false)
-      return
-    }
-
-    const g = gainRef.current.gain
-    const now = ctx.currentTime
-    g.cancelScheduledValues(now)
-    g.setValueAtTime(g.value, now)
-    g.exponentialRampToValueAtTime(0.0001, now + 0.3)
-
-    const finalize = () => {
-      if (closing) {
-        try { o1Ref.current?.stop(); o2Ref.current?.stop(); lfoRef.current?.stop(); } catch {}
-        try { o1Ref.current?.disconnect(); o2Ref.current?.disconnect(); lfoRef.current?.disconnect(); gainRef.current?.disconnect(); } catch {}
-        try { ctx.close() } catch {}
-        ctxRef.current = null
-        gainRef.current = null
-        o1Ref.current = null
-        o2Ref.current = null
-        lfoRef.current = null
-      } else {
-        ctx.suspend().catch(() => {})
-      }
-      setOn(false)
-    }
-
-    // allow fade-out to complete
-    setTimeout(finalize, 320)
+  const stop = async () => {
+    const el = ensureAudio()
+    await fadeTo(0, 300)
+    el.pause()
+    setPlaying(false)
   }
 
-  // Auto-suspend when tab hidden, resume if user toggled on
-  useEffect(() => {
-    const onVis = () => {
-      const ctx = ctxRef.current
-      if (!ctx) return
-      if (document.hidden) {
-        ctx.suspend().catch(() => {})
-      } else if (on) {
-        ctx.resume().catch(() => {})
-      }
+  const onPick = (e) => {
+    setError('')
+    const file = e.target.files?.[0]
+    if (!file) return
+    const url = URL.createObjectURL(file)
+    srcRef.current = url
+    // if already playing, switch smoothly
+    const el = ensureAudio()
+    const wasPlaying = playing
+    el.pause()
+    el.volume = 0
+    el.src = url
+    if (wasPlaying || hadUserGestureRef.current) {
+      el.play().then(() => fadeTo(0.9, 600).then(() => setPlaying(true))).catch((e) => {
+        setError('Could not play the selected file. Tap play again.')
+        console.error(e)
+      })
     }
-    document.addEventListener('visibilitychange', onVis)
-    return () => document.removeEventListener('visibilitychange', onVis)
-  }, [on])
+  }
 
   return (
     <div className="inline-flex items-center gap-2">
-      <button onClick={on ? () => stopAudio(false) : startAudio} className={`px-3 py-1.5 rounded-full border text-sm ${on ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-pink-700 border-pink-200 hover:bg-pink-50'}`}>
-        {on ? 'Pause soundtrack' : 'Play soft soundtrack'}
+      <button
+        onClick={playing ? stop : start}
+        className={`px-3 py-1.5 rounded-full border text-sm ${playing ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-pink-700 border-pink-200 hover:bg-pink-50'}`}
+        title={envSrc ? 'Plays your configured background music' : 'Pick the song file to play'}
+      >
+        <span className="inline-flex items-center gap-1">
+          <Music className="h-4 w-4" />
+          {playing ? 'Pause music' : 'Play music'}
+        </span>
       </button>
+      <label className="inline-flex items-center gap-2 px-2 py-1.5 rounded-full border border-pink-200 bg-white text-pink-700 hover:bg-pink-50 cursor-pointer text-xs">
+        <input type="file" accept="audio/*" className="hidden" onChange={onPick} />
+        Choose song
+      </label>
       {error && <span className="text-xs text-rose-600">{error}</span>}
     </div>
   )
