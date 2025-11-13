@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Heart, Sparkles, PenTool, Smile, ShowerHead, Gamepad2, Palette, Users, Crown, Check, Music } from 'lucide-react'
+import { Heart, Sparkles, PenTool, Smile, ShowerHead, Gamepad2, Palette, Users, Crown, Check, Music, PartyPopper, Balloon } from 'lucide-react'
 import DoodleCanvas from './components/DoodleCanvas'
 import Badge from './components/Badge'
 
@@ -151,135 +151,88 @@ function LetterCard() {
   )
 }
 
-// Background music player: plays a user-provided track (e.g., Indila - Love Story)
-// Works with either an environment URL (VITE_BGM_URL) or a local file picker.
+// Minimal background music toggle using env URL only (no extra texts)
 function SoundToggle() {
   const [playing, setPlaying] = useState(false)
-  const [error, setError] = useState('')
   const audioRef = useRef(null)
-  const srcRef = useRef(null) // current src string
-  const hadUserGestureRef = useRef(false)
-
   const envSrc = typeof import.meta !== 'undefined' ? import.meta.env.VITE_BGM_URL : undefined
 
-  // Create audio element lazily
   const ensureAudio = () => {
     if (!audioRef.current) {
       const el = new Audio()
       el.loop = true
       el.preload = 'auto'
       el.volume = 0
-      // visibility handling
-      const onVis = () => {
-        if (!el) return
+      audioRef.current = el
+      document.addEventListener('visibilitychange', () => {
         if (document.hidden && !el.paused) {
           el.pause()
           setPlaying(false)
         }
-      }
-      document.addEventListener('visibilitychange', onVis)
-      // store cleanup on element for safety
-      el._cleanup = () => document.removeEventListener('visibilitychange', onVis)
-      audioRef.current = el
+      })
     }
     return audioRef.current
   }
 
-  useEffect(() => {
-    return () => {
-      const el = audioRef.current
-      try {
-        if (el?._cleanup) el._cleanup()
-        if (el) {
-          el.pause()
-          el.src = ''
-        }
-      } catch {}
-    }
-  }, [])
-
-  const fadeTo = async (targetVol, ms = 600) => {
+  const fadeTo = async (target, ms = 500) => {
     const el = ensureAudio()
-    const steps = 24
+    const steps = 20
     const start = el.volume
-    const delta = targetVol - start
-    const frame = ms / steps
+    const diff = target - start
     for (let i = 1; i <= steps; i++) {
-      await new Promise(r => setTimeout(r, frame))
-      el.volume = Math.min(1, Math.max(0, start + (delta * i) / steps))
+      await new Promise(r => setTimeout(r, ms / steps))
+      el.volume = Math.min(1, Math.max(0, start + (diff * i) / steps))
     }
   }
 
   const start = async () => {
-    setError('')
-    hadUserGestureRef.current = true
+    if (!envSrc) return // silent if not configured
     const el = ensureAudio()
-
-    // pick source priority: chosen file > env url
-    const src = srcRef.current || envSrc
-    if (!src) {
-      setError('Choose the song file first.')
-      return
-    }
-
-    if (el.src !== src) {
-      el.src = src
-    }
-
+    if (el.src !== envSrc) el.src = envSrc
     try {
       await el.play()
-      await fadeTo(0.9, 800)
+      await fadeTo(0.9, 700)
       setPlaying(true)
-    } catch (e) {
-      setError('Playback was blocked. Tap again to start.')
-      console.error(e)
-    }
+    } catch {}
   }
 
   const stop = async () => {
     const el = ensureAudio()
-    await fadeTo(0, 300)
+    await fadeTo(0, 250)
     el.pause()
     setPlaying(false)
   }
 
-  const onPick = (e) => {
-    setError('')
-    const file = e.target.files?.[0]
-    if (!file) return
-    const url = URL.createObjectURL(file)
-    srcRef.current = url
-    // if already playing, switch smoothly
-    const el = ensureAudio()
-    const wasPlaying = playing
-    el.pause()
-    el.volume = 0
-    el.src = url
-    if (wasPlaying || hadUserGestureRef.current) {
-      el.play().then(() => fadeTo(0.9, 600).then(() => setPlaying(true))).catch((e) => {
-        setError('Could not play the selected file. Tap play again.')
-        console.error(e)
-      })
-    }
-  }
-
   return (
-    <div className="inline-flex items-center gap-2">
-      <button
-        onClick={playing ? stop : start}
-        className={`px-3 py-1.5 rounded-full border text-sm ${playing ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-pink-700 border-pink-200 hover:bg-pink-50'}`}
-        title={envSrc ? 'Plays your configured background music' : 'Pick the song file to play'}
-      >
-        <span className="inline-flex items-center gap-1">
-          <Music className="h-4 w-4" />
-          {playing ? 'Pause music' : 'Play music'}
-        </span>
-      </button>
-      <label className="inline-flex items-center gap-2 px-2 py-1.5 rounded-full border border-pink-200 bg-white text-pink-700 hover:bg-pink-50 cursor-pointer text-xs">
-        <input type="file" accept="audio/*" className="hidden" onChange={onPick} />
-        Choose song
-      </label>
-      {error && <span className="text-xs text-rose-600">{error}</span>}
+    <button
+      onClick={playing ? stop : start}
+      aria-label={playing ? 'Pause music' : 'Play music'}
+      className={`h-8 w-8 grid place-items-center rounded-full border ${playing ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-pink-700 border-pink-200 hover:bg-pink-50'}`}
+      title="Soundtrack"
+    >
+      <Music className="h-4 w-4" />
+    </button>
+  )
+}
+
+// Floating balloons layer for extra fun
+function Balloons({ enabled }) {
+  if (!enabled) return null
+  const items = Array.from({ length: 10 })
+  return (
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+      {items.map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute bottom-[-120px]"
+          initial={{ y: 0, x: Math.random() * window.innerWidth, opacity: 0.7 }}
+          animate={{ y: -window.innerHeight - 200, x: `calc(${Math.random() * 100}vw)`, opacity: [0.7, 1, 0.7] }}
+          transition={{ duration: 12 + Math.random() * 10, repeat: Infinity, delay: Math.random() * 6 }}
+        >
+          <div className="h-8 w-6 rounded-t-full rounded-b-[10px]" style={{ background: ['#f472b6', '#a78bfa', '#60a5fa', '#fbbf24', '#34d399'][i % 5] }} />
+          <div className="mx-auto h-10 w-[2px] bg-black/10" />
+        </motion.div>
+      ))}
     </div>
   )
 }
@@ -289,16 +242,22 @@ function App() {
   const [burstKey, setBurstKey] = useState(0)
   const [unlocked, setUnlocked] = useState({})
   const [complimentKey, setComplimentKey] = useState(0)
+  const [complimentIdx, setComplimentIdx] = useState(0)
   const compliments = useMemo(() => [
     'Your laugh is pure sunshine.',
     'Your art makes ordinary days sparkle.',
     'You have main-character energy, always.',
     'Kind heart, bold mind, unstoppable you.',
-    'You make the internet a friendlier place.'
+    'You make the internet a friendlier place.',
+    'You turn little moments into magic.',
+    'Your creativity is your superpower.',
+    'You’re a limited edition — one of one.'
   ], [])
 
   const [toast, setToast] = useState('')
   const [confettiTrigger, setConfettiTrigger] = useState(0)
+  const [balloons, setBalloons] = useState(false)
+  const [sparkle, setSparkle] = useState({ k: 0, x: 0, y: 0 })
 
   useEffect(() => {
     const onSaved = () => {
@@ -316,7 +275,14 @@ function App() {
     setBurstKey((k) => k + 1)
   }
 
-  const toggleBadge = (key) => setUnlocked((u) => ({ ...u, [key]: !u[key] }))
+  const toggleBadge = (key) => {
+    setUnlocked((u) => {
+      const next = { ...u, [key]: !u[key] }
+      // confetti on unlock
+      if (!u[key]) setConfettiTrigger((k) => k + 1)
+      return next
+    })
+  }
 
   // Multi-point confetti bursts
   const Confetti = ({ trigger }) => {
@@ -342,8 +308,30 @@ function App() {
     )
   }
 
+  const onJumpToDoodles = (e) => {
+    e.preventDefault()
+    const el = document.getElementById('doodle')
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const onRandomCompliment = (e) => {
+    // haptic feedback if available
+    if (navigator.vibrate) navigator.vibrate(10)
+    // random different from current
+    setComplimentKey((k) => k + 1)
+    setComplimentIdx((idx) => {
+      let next = Math.floor(Math.random() * compliments.length)
+      if (next === idx) next = (next + 1) % compliments.length
+      return next
+    })
+    // sparkle at button position
+    const rect = e.currentTarget.getBoundingClientRect()
+    setSparkle({ k: Date.now(), x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 + window.scrollY })
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-fuchsia-50 to-sky-50">
+    <div className="min-h-screen relative bg-gradient-to-br from-pink-50 via-fuchsia-50 to-sky-50">
+      <Balloons enabled={balloons} />
       {/* Top Bar */}
       <header className="sticky top-0 z-10 backdrop-blur bg-white/60 border-b border-white/50">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
@@ -353,6 +341,13 @@ function App() {
           </motion.div>
           <p className="font-semibold text-gray-800">For my amazing sister, Fathima</p>
           <span className="ml-auto inline-flex items-center gap-2">
+            <button
+              onClick={() => setBalloons((b) => !b)}
+              className={`h-8 px-2 rounded-full border text-sm ${balloons ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-sky-700 border-sky-200 hover:bg-sky-50'}`}
+              title="Balloon party"
+            >
+              🎈
+            </button>
             <SoundToggle />
             <span className="inline-flex items-center gap-1 text-pink-600 text-sm">
               <Sparkles className="h-4 w-4" />
@@ -385,19 +380,22 @@ function App() {
                 <button onClick={openWithSparkles} className="px-5 py-2.5 rounded-full bg-pink-600 text-white hover:bg-pink-700 shadow relative overflow-hidden">
                   <span className="relative z-10">Open the surprise</span>
                 </button>
-                <a href="#doodle" className="px-5 py-2.5 rounded-full bg-white text-pink-700 border border-pink-200 hover:bg-pink-50">
+                <button onClick={onJumpToDoodles} className="px-5 py-2.5 rounded-full bg-white text-pink-700 border border-pink-200 hover:bg-pink-50">
                   Jump to doodles
-                </a>
-                <button onClick={() => setComplimentKey((k) => k + 1)} className="px-5 py-2.5 rounded-full bg-gradient-to-r from-fuchsia-500 to-pink-500 text-white shadow hover:brightness-110">
+                </button>
+                <button onClick={onRandomCompliment} className="px-5 py-2.5 rounded-full bg-gradient-to-r from-fuchsia-500 to-pink-500 text-white shadow hover:brightness-110">
                   Random compliment
                 </button>
               </div>
-              <div className="mt-3 min-h-[28px]">
+              <div className="mt-3 min-h-[28px] relative">
                 <AnimatePresence mode="wait">
                   <motion.p key={complimentKey} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.25 }} className="text-pink-700 font-medium">
-                    {compliments[(Math.abs(complimentKey)) % compliments.length]}
+                    {compliments[complimentIdx]}
                   </motion.p>
                 </AnimatePresence>
+                <div className="absolute -left-6 top-0">
+                  <SparkleBurst trigger={sparkle.k} at={{ x: sparkle.x, y: sparkle.y }} />
+                </div>
               </div>
             </motion.div>
             <motion.div className="relative" initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.6, delay: 0.1 }}>
