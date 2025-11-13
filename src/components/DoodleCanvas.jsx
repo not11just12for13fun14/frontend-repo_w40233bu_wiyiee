@@ -75,6 +75,10 @@ export default function DoodleCanvas() {
     link.download = 'fathima-doodle.png'
     link.href = canvasRef.current.toDataURL('image/png')
     link.click()
+    // Notify app for confetti/toast
+    try {
+      window.dispatchEvent(new CustomEvent('doodle-saved'))
+    } catch {}
   }
 
   return (

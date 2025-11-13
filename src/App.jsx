@@ -4,23 +4,23 @@ import { Heart, Sparkles, PenTool, Smile, ShowerHead, Gamepad2, Palette, Users, 
 import DoodleCanvas from './components/DoodleCanvas'
 import Badge from './components/Badge'
 
-function SparkleBurst({ trigger }) {
+function SparkleBurst({ trigger, at = { x: 0, y: 0 } }) {
   const [items, setItems] = useState([])
   useEffect(() => {
     if (!trigger) return
-    const shards = Array.from({ length: 16 }).map((_, i) => ({ id: i, x: (Math.random() - 0.5) * 140, y: (Math.random() - 0.5) * 140, d: 700 + Math.random() * 400, s: 0.6 + Math.random() * 0.8 }))
+    const shards = Array.from({ length: 18 }).map((_, i) => ({ id: i + Math.random(), x: at.x + (Math.random() - 0.5) * 180, y: at.y + (Math.random() - 0.5) * 180, d: 600 + Math.random() * 500, s: 0.6 + Math.random() * 0.9 }))
     setItems(shards)
-    const t = setTimeout(() => setItems([]), 900)
+    const t = setTimeout(() => setItems([]), 1000)
     return () => clearTimeout(t)
   }, [trigger])
 
   return (
-    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+    <div className="pointer-events-none absolute inset-0">
       <AnimatePresence>
         {items.map((p) => (
           <motion.span
             key={p.id}
-            initial={{ opacity: 0, scale: 0, x: 0, y: 0 }}
+            initial={{ opacity: 0, scale: 0, x: at.x, y: at.y }}
             animate={{ opacity: 1, scale: p.s, x: p.x, y: p.y }}
             exit={{ opacity: 0 }}
             transition={{ duration: p.d / 1000, ease: 'easeOut' }}
@@ -151,65 +151,151 @@ function LetterCard() {
   )
 }
 
+// Improved, reliable Web Audio soundtrack with gentle shimmer
 function SoundToggle() {
   const ctxRef = useRef(null)
   const gainRef = useRef(null)
+  const o1Ref = useRef(null)
+  const o2Ref = useRef(null)
+  const lfoRef = useRef(null)
   const [on, setOn] = useState(false)
+  const [error, setError] = useState('')
 
+  // Clean up fully on unmount
   useEffect(() => {
     return () => {
-      if (ctxRef.current) {
-        ctxRef.current.close()
-      }
+      try {
+        stopAudio(true)
+      } catch {}
     }
   }, [])
 
-  const start = async () => {
-    if (!ctxRef.current) {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)()
-      const gain = ctx.createGain()
-      gain.gain.value = 0.04
-      gain.connect(ctx.destination)
-
-      // Soft shimmer: two detuned triangles
-      const osc1 = ctx.createOscillator()
-      osc1.type = 'triangle'
-      osc1.frequency.value = 220
-      osc1.detune.value = -6
-      osc1.connect(gain)
-      osc1.start()
-
-      const osc2 = ctx.createOscillator()
-      osc2.type = 'triangle'
-      osc2.frequency.value = 330
-      osc2.detune.value = +6
-      osc2.connect(gain)
-      osc2.start()
-
-      ctxRef.current = ctx
-      gainRef.current = gain
-    }
-    setOn(true)
+  // iOS/auto-unlock helper: create short silent buffer to unlock audio
+  const unlock = async (ctx) => {
+    try {
+      const buffer = ctx.createBuffer(1, 1, 22050)
+      const source = ctx.createBufferSource()
+      source.buffer = buffer
+      source.connect(ctx.destination)
+      source.start(0)
+    } catch {}
   }
 
-  const stop = () => {
-    if (ctxRef.current) {
-      ctxRef.current.suspend()
+  const startAudio = async () => {
+    setError('')
+    try {
+      if (!ctxRef.current) {
+        const Ctx = window.AudioContext || window.webkitAudioContext
+        const ctx = new Ctx()
+        await unlock(ctx)
+
+        const master = ctx.createGain()
+        master.gain.value = 0.0001 // start inaudible, ramp up
+        master.connect(ctx.destination)
+
+        // Base tones
+        const o1 = ctx.createOscillator()
+        o1.type = 'sine'
+        o1.frequency.value = 222
+        const o2 = ctx.createOscillator()
+        o2.type = 'triangle'
+        o2.frequency.value = 333
+        o2.detune.value = 7
+
+        // Gentle LFO modulates gain for shimmer
+        const lfo = ctx.createOscillator()
+        lfo.type = 'sine'
+        lfo.frequency.value = 0.12
+        const lfoGain = ctx.createGain()
+        lfoGain.gain.value = 0.06 // modulation depth
+        lfo.connect(lfoGain)
+        lfoGain.connect(master.gain)
+
+        o1.connect(master)
+        o2.connect(master)
+        o1.start()
+        o2.start()
+        lfo.start()
+
+        ctxRef.current = ctx
+        gainRef.current = master
+        o1Ref.current = o1
+        o2Ref.current = o2
+        lfoRef.current = lfo
+      }
+
+      const ctx = ctxRef.current
+      if (ctx.state === 'suspended') await ctx.resume()
+
+      // Smooth fade in
+      const g = gainRef.current.gain
+      const now = ctx.currentTime
+      g.cancelScheduledValues(now)
+      g.setValueAtTime(g.value, now)
+      g.exponentialRampToValueAtTime(0.08, now + 0.8)
+
+      setOn(true)
+    } catch (e) {
+      setError('Audio failed to start. Tap again if your browser blocked it.')
+      console.error(e)
     }
-    setOn(false)
   }
 
+  const stopAudio = (closing = false) => {
+    const ctx = ctxRef.current
+    if (!ctx || !gainRef.current) {
+      setOn(false)
+      return
+    }
+
+    const g = gainRef.current.gain
+    const now = ctx.currentTime
+    g.cancelScheduledValues(now)
+    g.setValueAtTime(g.value, now)
+    g.exponentialRampToValueAtTime(0.0001, now + 0.3)
+
+    const finalize = () => {
+      if (closing) {
+        try { o1Ref.current?.stop(); o2Ref.current?.stop(); lfoRef.current?.stop(); } catch {}
+        try { o1Ref.current?.disconnect(); o2Ref.current?.disconnect(); lfoRef.current?.disconnect(); gainRef.current?.disconnect(); } catch {}
+        try { ctx.close() } catch {}
+        ctxRef.current = null
+        gainRef.current = null
+        o1Ref.current = null
+        o2Ref.current = null
+        lfoRef.current = null
+      } else {
+        ctx.suspend().catch(() => {})
+      }
+      setOn(false)
+    }
+
+    // allow fade-out to complete
+    setTimeout(finalize, 320)
+  }
+
+  // Auto-suspend when tab hidden, resume if user toggled on
   useEffect(() => {
-    if (!ctxRef.current) return
-    if (on) {
-      ctxRef.current.resume()
+    const onVis = () => {
+      const ctx = ctxRef.current
+      if (!ctx) return
+      if (document.hidden) {
+        ctx.suspend().catch(() => {})
+      } else if (on) {
+        ctx.resume().catch(() => {})
+      }
     }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
   }, [on])
 
   return (
-    <button onClick={on ? stop : start} className={`px-3 py-1.5 rounded-full border text-sm ${on ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-pink-700 border-pink-200 hover:bg-pink-50'}`}>
-      {on ? 'Pause soundtrack' : 'Play soft soundtrack'}
-    </button>
+    <div className="inline-flex items-center gap-2">
+      <button onClick={on ? () => stopAudio(false) : startAudio} className={`px-3 py-1.5 rounded-full border text-sm ${on ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-pink-700 border-pink-200 hover:bg-pink-50'}`}>
+        {on ? 'Pause soundtrack' : 'Play soft soundtrack'}
+      </button>
+      {error && <span className="text-xs text-rose-600">{error}</span>}
+    </div>
   )
 }
 
@@ -217,6 +303,28 @@ function App() {
   const [open, setOpen] = useState(true)
   const [burstKey, setBurstKey] = useState(0)
   const [unlocked, setUnlocked] = useState({})
+  const [complimentKey, setComplimentKey] = useState(0)
+  const compliments = useMemo(() => [
+    'Your laugh is pure sunshine.',
+    'Your art makes ordinary days sparkle.',
+    'You have main-character energy, always.',
+    'Kind heart, bold mind, unstoppable you.',
+    'You make the internet a friendlier place.'
+  ], [])
+
+  const [toast, setToast] = useState('')
+  const [confettiTrigger, setConfettiTrigger] = useState(0)
+
+  useEffect(() => {
+    const onSaved = () => {
+      setToast('Doodle saved! 🎉')
+      setConfettiTrigger((k) => k + 1)
+      const t = setTimeout(() => setToast(''), 1600)
+      return () => clearTimeout(t)
+    }
+    window.addEventListener('doodle-saved', onSaved)
+    return () => window.removeEventListener('doodle-saved', onSaved)
+  }, [])
 
   const openWithSparkles = () => {
     setOpen(true)
@@ -224,6 +332,30 @@ function App() {
   }
 
   const toggleBadge = (key) => setUnlocked((u) => ({ ...u, [key]: !u[key] }))
+
+  // Multi-point confetti bursts
+  const Confetti = ({ trigger }) => {
+    const [points, setPoints] = useState([])
+    useEffect(() => {
+      if (!trigger) return
+      const w = window.innerWidth
+      const h = window.innerHeight
+      setPoints([
+        { x: w * 0.25, y: h * 0.35 },
+        { x: w * 0.5, y: h * 0.25 },
+        { x: w * 0.75, y: h * 0.4 },
+      ])
+      const t = setTimeout(() => setPoints([]), 1200)
+      return () => clearTimeout(t)
+    }, [trigger])
+    return (
+      <div className="pointer-events-none fixed inset-0 z-[60]">
+        {points.map((p, i) => (
+          <SparkleBurst key={i + '-' + trigger} trigger={trigger + i} at={p} />
+        ))}
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-fuchsia-50 to-sky-50">
@@ -264,13 +396,23 @@ function App() {
               <p className="mt-4 text-gray-600 text-lg">
                 Your English is smooth, your art is fearless, and your laugh is my favorite soundtrack. I love how you make friends online (even in Pakistan!), how dramatic you can be in the best way, and how you slay outfits in Roblox: Dress to Impress on your PC.
               </p>
-              <div className="mt-6 flex items-center gap-3">
+              <div className="mt-6 flex flex-wrap items-center gap-3">
                 <button onClick={openWithSparkles} className="px-5 py-2.5 rounded-full bg-pink-600 text-white hover:bg-pink-700 shadow relative overflow-hidden">
                   <span className="relative z-10">Open the surprise</span>
                 </button>
                 <a href="#doodle" className="px-5 py-2.5 rounded-full bg-white text-pink-700 border border-pink-200 hover:bg-pink-50">
                   Jump to doodles
                 </a>
+                <button onClick={() => setComplimentKey((k) => k + 1)} className="px-5 py-2.5 rounded-full bg-gradient-to-r from-fuchsia-500 to-pink-500 text-white shadow hover:brightness-110">
+                  Random compliment
+                </button>
+              </div>
+              <div className="mt-3 min-h-[28px]">
+                <AnimatePresence mode="wait">
+                  <motion.p key={complimentKey} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.25 }} className="text-pink-700 font-medium">
+                    {compliments[(Math.abs(complimentKey)) % compliments.length]}
+                  </motion.p>
+                </AnimatePresence>
               </div>
             </motion.div>
             <motion.div className="relative" initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.6, delay: 0.1 }}>
@@ -391,6 +533,18 @@ function App() {
           <DoodleCanvas />
         </div>
       </section>
+
+      {/* Toast + Confetti */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }} transition={{ duration: 0.25 }} className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70]">
+            <div className="px-4 py-2 rounded-full bg-black/70 text-white shadow-md backdrop-blur">
+              {toast}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <Confetti trigger={confettiTrigger} />
 
       {/* Footer */}
       <footer className="pb-10">
