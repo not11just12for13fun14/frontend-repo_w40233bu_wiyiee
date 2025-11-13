@@ -146,7 +146,7 @@ function App() {
                 Hey Fathima, you are a masterpiece in progress
               </h1>
               <p className="mt-4 text-gray-600 text-lg">
-                Your English is smooth, your art is fearless, and your laugh is my favorite soundtrack. This little site is my way of saying: I see you, I’m proud of you, and I love you — endlessly.
+                Your English is smooth, your art is fearless, and your laugh is my favorite soundtrack. I love how you make friends online (even in Pakistan!), how dramatic you can be in the best way, and how you slay outfits in Roblox: Dress to Impress on your PC.
               </p>
               <div className="mt-6 flex items-center gap-3">
                 <button onClick={() => setOpen(true)} className="px-5 py-2.5 rounded-full bg-pink-600 text-white hover:bg-pink-700 shadow">
@@ -166,7 +166,7 @@ function App() {
                   <h3 className="font-semibold text-gray-800">Creative soul</h3>
                 </div>
                 <p className="mt-3 text-gray-600 text-sm">
-                  Fathima, I love the way you draw — the swirls, the colors, the boldness. Keep creating. Your art is your superpower.
+                  Fathima, I love the way you draw — the swirls, the colors, the boldness. Keep creating animations and stories. Your art is your superpower.
                 </p>
                 <div className="mt-4 flex items-center gap-2 text-sm text-gray-500">
                   <Smile className="h-4 w-4" />
@@ -186,21 +186,41 @@ function App() {
               <h2 className="text-2xl font-bold text-gray-900">Reasons I admire you</h2>
               <ul className="mt-4 space-y-3 text-gray-700">
                 <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-pink-500" />Fathima, you speak English so confidently — keep shining in every conversation.</li>
-                <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-fuchsia-500" />Your drawings bring ideas to life — the world needs your art.</li>
-                <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-sky-500" />You’re funny, a little crazy, and delightfully weird — that’s your magic.</li>
+                <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-fuchsia-500" />Your drawings and animations bring ideas to life — the world needs your art.</li>
+                <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-sky-500" />You’re funny, delightfully dramatic, and wonderfully you — that’s your magic.</li>
+                <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-rose-500" />You build friendships online with kindness — even across borders.</li>
+                <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-amber-500" />You have awesome style — Dress to Impress champion energy.</li>
               </ul>
               <button onClick={() => setOpen(false)} className="mt-6 px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50">Hide section</button>
             </div>
 
-            <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-2xl border border-pink-100 shadow-sm p-6">
-              <div className="flex items-center gap-2 text-rose-700">
-                <ShowerHead className="h-5 w-5" />
-                <h3 className="font-semibold">A silly (loving) reminder</h3>
+            <div className="space-y-4">
+              <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-2xl border border-pink-100 shadow-sm p-6">
+                <div className="flex items-center gap-2 text-rose-700">
+                  <ShowerHead className="h-5 w-5" />
+                  <h3 className="font-semibold">A silly (loving) reminder</h3>
+                </div>
+                <p className="mt-3 text-gray-700 text-sm leading-relaxed">
+                  You’re perfect just the way you are — even if you don’t love frequent baths. Consider this a friendly sparkle-spritz reminder, Fathima: self-care makes you glow even more! 💦✨
+                </p>
+                <p className="mt-2 text-xs text-gray-500">No pressure. Just vibes. Love you!</p>
               </div>
-              <p className="mt-3 text-gray-700 text-sm leading-relaxed">
-                You’re perfect just the way you are — even if you don’t love frequent baths. Consider this a friendly sparkle-spritz reminder, Fathima: self-care makes you glow even more! 💦✨
-              </p>
-              <p className="mt-2 text-xs text-gray-500">No pressure. Just vibes. Love you!</p>
+
+              <div className="rounded-2xl border border-fuchsia-100 bg-white shadow-sm p-6">
+                <div className="flex items-center gap-2 text-fuchsia-700">
+                  <Sparkles className="h-5 w-5" />
+                  <h3 className="font-semibold">About Fathima</h3>
+                </div>
+                <p className="mt-3 text-sm text-gray-700">Little things that make you, you:</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className="px-3 py-1 text-xs rounded-full bg-fuchsia-50 text-fuchsia-700 border border-fuchsia-100">PC gamer</span>
+                  <span className="px-3 py-1 text-xs rounded-full bg-pink-50 text-pink-700 border border-pink-100">Roblox: Dress to Impress</span>
+                  <span className="px-3 py-1 text-xs rounded-full bg-rose-50 text-rose-700 border border-rose-100">Dramatic queen</span>
+                  <span className="px-3 py-1 text-xs rounded-full bg-sky-50 text-sky-700 border border-sky-100">Online friends in Pakistan</span>
+                  <span className="px-3 py-1 text-xs rounded-full bg-amber-50 text-amber-700 border border-amber-100">Animator in the making</span>
+                  <span className="px-3 py-1 text-xs rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">Friend-maker online</span>
+                </div>
+              </div>
             </div>
           </div>
         </section>
