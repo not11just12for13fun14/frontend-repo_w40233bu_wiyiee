@@ -7,6 +7,8 @@ export default function DoodleCanvas() {
   const [color, setColor] = useState('#db2777')
   const [size, setSize] = useState(6)
   const [bg, setBg] = useState('#fff7fb')
+  const [mode, setMode] = useState('draw') // 'draw' | 'stamp'
+  const [stamp, setStamp] = useState('💖')
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -44,12 +46,17 @@ export default function DoodleCanvas() {
 
   const start = (e) => {
     const p = pos(e)
+    if (mode === 'stamp') {
+      placeStamp(p)
+      return
+    }
     setIsDrawing(true)
     const ctx = ctxRef.current
     ctx.beginPath()
     ctx.moveTo(p.x, p.y)
   }
   const move = (e) => {
+    if (mode === 'stamp') return
     if (!isDrawing) return
     const p = pos(e)
     const ctx = ctxRef.current
@@ -81,18 +88,59 @@ export default function DoodleCanvas() {
     } catch {}
   }
 
+  const placeStamp = ({ x, y }) => {
+    const ctx = ctxRef.current
+    const fontSize = Math.max(20, size * 6)
+    ctx.save()
+    ctx.font = `${fontSize}px system-ui, Apple Color Emoji, Segoe UI Emoji`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    // soft shadow glow using the selected color
+    ctx.shadowColor = color
+    ctx.shadowBlur = 8
+    ctx.fillText(stamp, x, y)
+    ctx.restore()
+  }
+
   return (
     <div className="w-full">
       <div className="flex flex-wrap items-center gap-3 mb-3">
-        <label className="flex items-center gap-2 text-sm text-gray-600">
-          Color
-          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-8 cursor-pointer rounded border" aria-label="Brush color" />
-        </label>
-        <label className="flex items-center gap-2 text-sm text-gray-600">
-          Brush
-          <input type="range" min="1" max="24" value={size} onChange={(e) => setSize(Number(e.target.value))} className="accent-pink-500" aria-label="Brush size" />
-          <span className="text-xs text-gray-500">{size}px</span>
-        </label>
+        <div className="inline-flex rounded-lg overflow-hidden border">
+          <button onClick={() => setMode('draw')} className={`px-3 py-1.5 text-sm ${mode === 'draw' ? 'bg-pink-600 text-white' : 'bg-white text-gray-700'}`}>Draw</button>
+          <button onClick={() => setMode('stamp')} className={`px-3 py-1.5 text-sm ${mode === 'stamp' ? 'bg-pink-600 text-white' : 'bg-white text-gray-700'}`}>Stickers</button>
+        </div>
+
+        {mode === 'draw' && (
+          <>
+            <label className="flex items-center gap-2 text-sm text-gray-600">
+              Color
+              <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-8 cursor-pointer rounded border" aria-label="Brush color" />
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-600">
+              Brush
+              <input type="range" min="1" max="24" value={size} onChange={(e) => setSize(Number(e.target.value))} className="accent-pink-500" aria-label="Brush size" />
+              <span className="text-xs text-gray-500">{size}px</span>
+            </label>
+          </>
+        )}
+
+        {mode === 'stamp' && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">Pick</span>
+            {['💖','✨','🌟','👑','🎀','🐱','🌸','🦋'].map((s) => (
+              <button key={s} onClick={() => setStamp(s)} className={`h-8 w-8 grid place-items-center rounded-lg border ${stamp === s ? 'bg-pink-100 border-pink-300' : 'bg-white hover:bg-gray-50'}`}>{s}</button>
+            ))}
+            <label className="flex items-center gap-2 text-sm text-gray-600 ml-2">
+              Size
+              <input type="range" min="3" max="18" value={size} onChange={(e) => setSize(Number(e.target.value))} className="accent-pink-500" aria-label="Sticker size" />
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-600">
+              Glow
+              <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-8 cursor-pointer rounded border" aria-label="Sticker glow color" />
+            </label>
+          </div>
+        )}
+
         <label className="flex items-center gap-2 text-sm text-gray-600">
           Canvas
           <input type="color" value={bg} onChange={(e) => setBg(e.target.value)} className="h-8 w-8 cursor-pointer rounded border" aria-label="Canvas background" />
