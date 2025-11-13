@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Heart, Sparkles, PenTool, Smile, ShowerHead, Gamepad2, Palette, Users, Crown } from 'lucide-react'
+import { Heart, Sparkles, PenTool, Smile, ShowerHead, Gamepad2, Palette, Users, Crown, Check } from 'lucide-react'
 import DoodleCanvas from './components/DoodleCanvas'
 import Badge from './components/Badge'
 
@@ -32,6 +32,38 @@ function SparkleBurst({ trigger }) {
   )
 }
 
+function TypewriterSparkle({ text }) {
+  const [index, setIndex] = useState(0)
+  const [burst, setBurst] = useState(0)
+  useEffect(() => {
+    setIndex(0)
+    const id = setInterval(() => {
+      setIndex((i) => {
+        const ni = Math.min(text.length, i + 1)
+        if (ni % 6 === 0) setBurst((b) => b + 1)
+        if (ni === text.length) clearInterval(id)
+        return ni
+      })
+    }, 35)
+    return () => clearInterval(id)
+  }, [text])
+
+  const shown = text.slice(0, index)
+  const rest = text.slice(index)
+  return (
+    <div className="relative">
+      <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900">
+        {shown}
+        <span className="opacity-40">{rest && '|'}
+        </span>
+      </h1>
+      <div className="absolute left-0 top-1/2 -translate-y-1/2">
+        <SparkleBurst trigger={burst} />
+      </div>
+    </div>
+  )
+}
+
 function PhotoGallery() {
   const [files, setFiles] = useState([])
   const [view, setView] = useState(null)
@@ -41,6 +73,8 @@ function PhotoGallery() {
     const mapped = arr.map((f) => ({ url: URL.createObjectURL(f), name: f.name }))
     setFiles((prev) => [...prev, ...mapped].slice(0, 12))
   }
+
+  const removeAt = (i) => setFiles((prev) => prev.filter((_, idx) => idx !== i))
 
   return (
     <div className="bg-white rounded-2xl border border-sky-100 p-6 shadow-sm">
@@ -57,17 +91,19 @@ function PhotoGallery() {
       {files.length > 0 && (
         <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-3">
           {files.map((f, i) => (
-            <motion.button
+            <motion.div
               key={i}
-              onClick={() => setView(f)}
               className="group relative aspect-square overflow-hidden rounded-xl border border-gray-100 bg-gray-50"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
             >
-              <img src={f.url} alt={f.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              <button onClick={() => setView(f)} className="absolute inset-0">
+                <img src={f.url} alt={f.name} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              </button>
+              <button onClick={() => removeAt(i)} className="absolute top-2 right-2 text-xs px-2 py-1 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity">Remove</button>
               <span className="absolute inset-0 ring-0 group-hover:ring-2 ring-pink-300/60 rounded-xl transition-all" />
-            </motion.button>
+            </motion.div>
           ))}
         </div>
       )}
@@ -115,14 +151,79 @@ function LetterCard() {
   )
 }
 
+function SoundToggle() {
+  const ctxRef = useRef(null)
+  const gainRef = useRef(null)
+  const [on, setOn] = useState(false)
+
+  useEffect(() => {
+    return () => {
+      if (ctxRef.current) {
+        ctxRef.current.close()
+      }
+    }
+  }, [])
+
+  const start = async () => {
+    if (!ctxRef.current) {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)()
+      const gain = ctx.createGain()
+      gain.gain.value = 0.04
+      gain.connect(ctx.destination)
+
+      // Soft shimmer: two detuned triangles
+      const osc1 = ctx.createOscillator()
+      osc1.type = 'triangle'
+      osc1.frequency.value = 220
+      osc1.detune.value = -6
+      osc1.connect(gain)
+      osc1.start()
+
+      const osc2 = ctx.createOscillator()
+      osc2.type = 'triangle'
+      osc2.frequency.value = 330
+      osc2.detune.value = +6
+      osc2.connect(gain)
+      osc2.start()
+
+      ctxRef.current = ctx
+      gainRef.current = gain
+    }
+    setOn(true)
+  }
+
+  const stop = () => {
+    if (ctxRef.current) {
+      ctxRef.current.suspend()
+    }
+    setOn(false)
+  }
+
+  useEffect(() => {
+    if (!ctxRef.current) return
+    if (on) {
+      ctxRef.current.resume()
+    }
+  }, [on])
+
+  return (
+    <button onClick={on ? stop : start} className={`px-3 py-1.5 rounded-full border text-sm ${on ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-pink-700 border-pink-200 hover:bg-pink-50'}`}>
+      {on ? 'Pause soundtrack' : 'Play soft soundtrack'}
+    </button>
+  )
+}
+
 function App() {
   const [open, setOpen] = useState(true)
   const [burstKey, setBurstKey] = useState(0)
+  const [unlocked, setUnlocked] = useState({})
 
   const openWithSparkles = () => {
     setOpen(true)
     setBurstKey((k) => k + 1)
   }
+
+  const toggleBadge = (key) => setUnlocked((u) => ({ ...u, [key]: !u[key] }))
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-fuchsia-50 to-sky-50">
@@ -134,9 +235,12 @@ function App() {
             <SparkleBurst trigger={burstKey} />
           </motion.div>
           <p className="font-semibold text-gray-800">For my amazing sister, Fathima</p>
-          <span className="ml-auto inline-flex items-center gap-1 text-pink-600 text-sm">
-            <Sparkles className="h-4 w-4" />
-            Made with love by your brother
+          <span className="ml-auto inline-flex items-center gap-2">
+            <SoundToggle />
+            <span className="inline-flex items-center gap-1 text-pink-600 text-sm">
+              <Sparkles className="h-4 w-4" />
+              Made with love by your brother
+            </span>
           </span>
         </div>
       </header>
@@ -156,9 +260,7 @@ function App() {
         <div className="max-w-5xl mx-auto px-4 pt-14 pb-10">
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.6 }}>
-              <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900">
-                Hey Fathima, you are a masterpiece in progress
-              </h1>
+              <TypewriterSparkle text="Hey Fathima, you are a masterpiece in progress" />
               <p className="mt-4 text-gray-600 text-lg">
                 Your English is smooth, your art is fearless, and your laugh is my favorite soundtrack. I love how you make friends online (even in Pakistan!), how dramatic you can be in the best way, and how you slay outfits in Roblox: Dress to Impress on your PC.
               </p>
@@ -232,15 +334,42 @@ function App() {
                 <div className="rounded-2xl border border-fuchsia-100 bg-white shadow-sm p-6">
                   <div className="flex items-center gap-2 text-fuchsia-700">
                     <Sparkles className="h-5 w-5" />
-                    <h3 className="font-semibold">About Fathima</h3>
+                    <h3 className="font-semibold">Achievements</h3>
                   </div>
-                  <p className="mt-3 text-sm text-gray-700">Little things that make you, you:</p>
+                  <p className="mt-3 text-sm text-gray-700">Tap to unlock — just for fun!</p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <Badge color="sky"><span className="inline-flex items-center gap-1"><Gamepad2 className="h-3.5 w-3.5" /> PC gamer</span></Badge>
-                    <Badge color="pink"><span className="inline-flex items-center gap-1"><Crown className="h-3.5 w-3.5" /> Roblox: Dress to Impress</span></Badge>
-                    <Badge color="rose"><span className="inline-flex items-center gap-1"><Smile className="h-3.5 w-3.5" /> Dramatic queen</span></Badge>
-                    <Badge color="emerald"><span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" /> Online friends in Pakistan</span></Badge>
-                    <Badge color="amber"><span className="inline-flex items-center gap-1"><Palette className="h-3.5 w-3.5" /> Animator in the making</span></Badge>
+                    {[
+                      { key: 'gamer', color: 'sky', icon: Gamepad2, label: 'PC gamer' },
+                      { key: 'dress', color: 'pink', icon: Crown, label: 'Dress to Impress' },
+                      { key: 'drama', color: 'rose', icon: Smile, label: 'Dramatic queen' },
+                      { key: 'friends', color: 'emerald', icon: Users, label: 'Friends in Pakistan' },
+                      { key: 'anim', color: 'amber', icon: Palette, label: 'Animator in the making' },
+                    ].map(({ key, color, icon: Icon, label }) => (
+                      <motion.button
+                        key={key}
+                        whileTap={{ scale: 0.96 }}
+                        onClick={() => toggleBadge(key)}
+                        className="relative"
+                      >
+                        <Badge color={color}>
+                          <span className="inline-flex items-center gap-1">
+                            <Icon className="h-3.5 w-3.5" /> {label}
+                          </span>
+                        </Badge>
+                        <AnimatePresence>
+                          {unlocked[key] && (
+                            <motion.span
+                              initial={{ scale: 0, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              exit={{ scale: 0.8, opacity: 0 }}
+                              className="absolute -top-2 -right-2 grid place-items-center h-5 w-5 rounded-full bg-emerald-500 text-white shadow"
+                            >
+                              <Check className="h-3 w-3" />
+                            </motion.span>
+                          )}
+                        </AnimatePresence>
+                      </motion.button>
+                    ))}
                   </div>
                 </div>
 
