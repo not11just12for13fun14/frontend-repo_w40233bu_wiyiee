@@ -74,7 +74,7 @@ function DoodleCanvas() {
 
   const save = () => {
     const link = document.createElement('a')
-    link.download = 'sister-doodle.png'
+    link.download = 'fathima-doodle.png'
     link.href = canvasRef.current.toDataURL('image/png')
     link.click()
   }
@@ -128,7 +128,7 @@ function App() {
           <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-pink-500 to-fuchsia-500 grid place-items-center text-white">
             <Heart className="h-5 w-5" />
           </div>
-          <p className="font-semibold text-gray-800">For my amazing sister</p>
+          <p className="font-semibold text-gray-800">For my amazing sister, Fathima</p>
           <span className="ml-auto inline-flex items-center gap-1 text-pink-600 text-sm">
             <Sparkles className="h-4 w-4" />
             Made with love by your brother
@@ -143,7 +143,7 @@ function App() {
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <div>
               <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900">
-                Hey sis, you are a masterpiece in progress
+                Hey Fathima, you are a masterpiece in progress
               </h1>
               <p className="mt-4 text-gray-600 text-lg">
                 Your English is smooth, your art is fearless, and your laugh is my favorite soundtrack. This little site is my way of saying: I see you, I’m proud of you, and I love you — endlessly.
@@ -166,7 +166,7 @@ function App() {
                   <h3 className="font-semibold text-gray-800">Creative soul</h3>
                 </div>
                 <p className="mt-3 text-gray-600 text-sm">
-                  I love the way you draw — the swirls, the colors, the boldness. Keep creating. Your art is your superpower.
+                  Fathima, I love the way you draw — the swirls, the colors, the boldness. Keep creating. Your art is your superpower.
                 </p>
                 <div className="mt-4 flex items-center gap-2 text-sm text-gray-500">
                   <Smile className="h-4 w-4" />
@@ -185,7 +185,7 @@ function App() {
             <div className="col-span-2 bg-white rounded-2xl border border-pink-100/70 shadow-sm p-6">
               <h2 className="text-2xl font-bold text-gray-900">Reasons I admire you</h2>
               <ul className="mt-4 space-y-3 text-gray-700">
-                <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-pink-500" />You speak English so confidently — keep shining in every conversation.</li>
+                <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-pink-500" />Fathima, you speak English so confidently — keep shining in every conversation.</li>
                 <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-fuchsia-500" />Your drawings bring ideas to life — the world needs your art.</li>
                 <li className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-sky-500" />You’re funny, a little crazy, and delightfully weird — that’s your magic.</li>
               </ul>
@@ -198,7 +198,7 @@ function App() {
                 <h3 className="font-semibold">A silly (loving) reminder</h3>
               </div>
               <p className="mt-3 text-gray-700 text-sm leading-relaxed">
-                You’re perfect just the way you are — even if you don’t love frequent baths. Consider this a friendly sparkle-spritz reminder: self-care makes you glow even more! 💦✨
+                You’re perfect just the way you are — even if you don’t love frequent baths. Consider this a friendly sparkle-spritz reminder, Fathima: self-care makes you glow even more! 💦✨
               </p>
               <p className="mt-2 text-xs text-gray-500">No pressure. Just vibes. Love you!</p>
             </div>
@@ -225,6 +225,7 @@ function App() {
             <span className="text-gray-700">With all my love, always — your big brother</span>
             <span className="ml-2 inline-flex items-center text-pink-600"><Heart className="h-4 w-4 mr-1" /> forever</span>
           </div>
+          <p className="mt-3 text-center text-sm text-gray-500">For Fathima ❤️</p>
         </div>
       </footer>
     </div>
